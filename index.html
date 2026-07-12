@@ -244,6 +244,37 @@ td.num.out{color:var(--expense)}
 .form-section{display:flex;align-items:center;gap:10px;margin:20px 0 12px;color:var(--brand);font-weight:800;font-size:12px;letter-spacing:.05em;text-transform:uppercase}
 .form-section::after{content:"";flex:1;height:1px;background:var(--line)}
 .calc-note{margin-top:8px;font-size:13px;font-weight:600;color:var(--ink-soft);background:var(--brand-soft);border-radius:10px;padding:8px 11px;display:none}
+.warn-box{display:flex;gap:11px;align-items:flex-start;background:var(--expense-soft);border:1px solid #E9C4BA;color:#8a3a2b;border-radius:12px;padding:13px 15px;font-size:13.5px;line-height:1.5;margin-bottom:18px}
+.warn-box svg{width:22px;height:22px;flex:none;color:var(--expense);margin-top:1px}
+.btn-danger-ghost{color:var(--expense)}
+.btn-danger-ghost:hover{border-color:var(--expense);background:var(--expense-soft)}
+
+/* ===== Cetak PDF (print) ===== */
+#printArea{display:none}
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff!important}
+  body>*{display:none!important}
+  #printArea{display:block!important;font-family:var(--sans);color:#1a1a1a}
+  .pr-head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #15594C;padding-bottom:12px;margin-bottom:16px}
+  .pr-head img{width:52px;height:52px;object-fit:contain}
+  .pr-title{font-size:20px;font-weight:800;color:#15594C;letter-spacing:.02em}
+  .pr-sub{font-size:13px;color:#444;margin-top:2px}
+  .pr-date{margin-left:auto;text-align:right;font-size:11px;color:#555;line-height:1.5}
+  .pr-table{width:100%;border-collapse:collapse;font-size:11.5px}
+  .pr-table th{background:#15594C!important;color:#fff!important;text-align:left;padding:7px 9px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pr-table td{padding:6px 9px;border-bottom:1px solid #e2e2e2}
+  .pr-table tbody tr:nth-child(even) td{background:#f6f4ee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pr-table .r{text-align:right}
+  .pr-table .c{text-align:center}
+  .pr-table .low{color:#C0523E;font-weight:700}
+  .pr-table tfoot td{border-top:2px solid #15594C;padding:8px 9px;font-size:12.5px}
+  .pr-summary{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  .pr-summary>div{flex:1;min-width:120px;border:1px solid #ddd;border-radius:8px;padding:9px 11px}
+  .pr-summary span{display:block;font-size:10.5px;color:#666;margin-bottom:3px}
+  .pr-summary b{font-size:14px;color:#15594C}
+  .pr-foot{margin-top:20px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#888;text-align:center}
+}
 .profil-list{display:flex;flex-direction:column;gap:10px}
 .profil-opt{display:flex;align-items:center;gap:13px;width:100%;text-align:left;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;background:var(--surface-2);transition:.15s}
 .profil-opt:hover{border-color:var(--brand)}
@@ -479,6 +510,10 @@ let currentProfil = localStorage.getItem('mm_profil') || 'putri';
 if(!PROFILES[currentProfil]) currentProfil='putri';
 function profilLabel(){ return PROFILES[currentProfil].label; }
 
+/* Kategori pengeluaran yang dihitung sebagai Gaji / Operasional di ringkasan Beranda */
+const KAT_GAJI = ['Gaji','Gaji Karyawan','Upah'];
+const KAT_OPERASIONAL = ['Operasional','Biaya Operasional','Utilitas','Sewa','Sewa Tempat','Listrik','Air','Internet','Gas','Kebersihan','Transport','Perlengkapan'];
+
 /* ---------- Module definitions ---------- */
 const ICONS = {
   plus:'<path d="M12 5v14M5 12h14"/>',
@@ -511,7 +546,7 @@ const MODULES = {
     fields:[
       {name:'tanggal',label:'Tanggal',type:'date',required:true,def:()=>todayISO()},
       {name:'keterangan',label:'Keterangan',type:'text',required:true,ph:'mis. Belanja gula & kopi'},
-      {name:'kategori',label:'Kategori',type:'category',options:['Belanja Stok','Gaji','Transport','Perlengkapan','Utilitas','Sewa','Lain-lain']},
+      {name:'kategori',label:'Kategori',type:'category',options:['Belanja Stok','Gaji','Operasional','Transport','Utilitas','Listrik','Air','Sewa','Perlengkapan','Lain-lain']},
       {name:'jumlah',label:'Jumlah (Rp)',type:'money',required:true},
     ],
     cols:[
@@ -772,10 +807,17 @@ async function renderBeranda(){
   const ym=currentMonth;
   const sum=(arr)=>arr.reduce((a,r)=>a+(Number(r.jumlah)||0),0);
   const masuk = sum(pmk.filter(r=>inMonth(r.tanggal,ym)));
-  const keluarPengeluaran = sum(pgl.filter(r=>inMonth(r.tanggal,ym)));
-  const keluarOps = sum(ops.filter(r=>inMonth(r.tanggal,ym)));
-  const keluarGaji = sum(gj.filter(r=>inMonth(r.tanggal,ym)));
-  const keluar = keluarPengeluaran + keluarOps + keluarGaji;
+  const pglMonth = pgl.filter(r=>inMonth(r.tanggal,ym));
+  const keluarPengeluaran = sum(pglMonth);
+  // reklasifikasi pengeluaran berdasarkan kategori
+  const gajiDariPgl = sum(pglMonth.filter(r=>KAT_GAJI.includes(String(r.kategori||'').trim())));
+  const opsDariPgl  = sum(pglMonth.filter(r=>KAT_OPERASIONAL.includes(String(r.kategori||'').trim())));
+  const belanjaLain = keluarPengeluaran - gajiDariPgl - opsDariPgl;
+  const opsModule = sum(ops.filter(r=>inMonth(r.tanggal,ym)));
+  const gajiModule = sum(gj.filter(r=>inMonth(r.tanggal,ym)));
+  const totalOperasional = opsModule + opsDariPgl;   // modul + kategori pengeluaran
+  const totalGaji = gajiModule + gajiDariPgl;         // modul + kategori pengeluaran
+  const keluar = keluarPengeluaran + opsModule + gajiModule;
   const laba = masuk - keluar;
   const nilaiStok = stk.reduce((a,r)=>a+(Number(r.stok)||0)*(Number(r.harga_beli)||0),0);
   const lowStock = stk.filter(r=> Number(r.stok) <= Number(r.stok_minimum||0));
@@ -813,9 +855,9 @@ async function renderBeranda(){
       <div class="receipt-split">
         <div><div class="rl">Total Masuk</div><div class="rv" style="color:#8FE3B8">+Rp${rupiahShort(masuk)}</div></div>
         <div><div class="rl">Total Keluar</div><div class="rv" style="color:#F0B3A5">-Rp${rupiahShort(keluar)}</div></div>
-        <div><div class="rl">Pengeluaran</div><div class="rv">Rp${rupiahShort(keluarPengeluaran)}</div></div>
-        <div><div class="rl">Operasional</div><div class="rv">Rp${rupiahShort(keluarOps)}</div></div>
-        <div><div class="rl">Gaji</div><div class="rv">Rp${rupiahShort(keluarGaji)}</div></div>
+        <div><div class="rl">Belanja &amp; Lainnya</div><div class="rv">Rp${rupiahShort(belanjaLain)}</div></div>
+        <div><div class="rl">Operasional</div><div class="rv">Rp${rupiahShort(totalOperasional)}</div></div>
+        <div><div class="rl">Gaji</div><div class="rv">Rp${rupiahShort(totalGaji)}</div></div>
       </div>
     </div>
 
@@ -922,6 +964,10 @@ async function renderModule(view){
     </div>`;
   }
 
+  const stokActions = (view==='stok') ? `
+      <button class="btn btn-ghost" onclick="printStok()" title="Cetak / simpan PDF">${svg('<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/>')}<span class="hide-sm">Cetak PDF</span></button>
+      <button class="btn btn-ghost btn-danger-ghost" onclick="askEmptyStock()" title="Kosongkan semua stok">${svg('<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/>')}<span class="hide-sm">Kosongkan</span></button>` : '';
+
   c.innerHTML=configBanner()+extraSummary+`
     <div class="toolbar">
       <div class="search">
@@ -929,6 +975,7 @@ async function renderModule(view){
         <input id="searchBox" placeholder="Cari ${esc(M.label.toLowerCase())}..." oninput="applyFilters()" />
       </div>
       ${filterHtml}
+      ${stokActions}
       <button class="btn btn-primary" onclick="openForm('${view}')">${svg(ICONS.plus,'stroke-width="2.4"')}<span>${esc(M.addLabel)}</span></button>
     </div>
     <div class="tbl-wrap" id="tblWrap">${renderTable(view,rows)}</div>
@@ -1145,6 +1192,89 @@ function closeModal(){
 }
 
 /* ============================================================
+   STOK: Kosongkan semua & Cetak PDF
+   ============================================================ */
+function askEmptyStock(){
+  const n=(cache['stok_barang']||[]).length;
+  if(!n){ toast('Belum ada barang','err'); return; }
+  document.getElementById('modal').innerHTML=`
+    <div class="modal-head"><h3>Kosongkan semua stok?</h3>
+      <button class="icon-btn" onclick="closeModal()">${svg('<path d="M18 6L6 18M6 6l12 12"/>')}</button></div>
+    <div class="modal-body">
+      <div class="warn-box">${svg('<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6A2 2 0 0 0 22 18L13.7 3.9a2 2 0 0 0-3.4 0z"/>')}
+        <div>Jumlah stok <b>semua ${n} barang</b> di halaman <b>${esc(profilLabel())}</b> akan dijadikan <b>0</b>. Nama, harga, dan kategori barang tetap tersimpan. Tindakan ini tidak bisa dibatalkan.</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="closeModal()">Batal</button>
+        <button class="btn" style="background:var(--expense);color:#fff;flex:1" onclick="doEmptyStock()">${svg('<path d="M20 6L9 17l-5-5"/>')} Ya, kosongkan</button>
+      </div>
+    </div>`;
+  document.getElementById('overlay').classList.add('show');
+  document.body.style.overflow='hidden';
+}
+async function doEmptyStock(){
+  const { error } = await sb.from('stok_barang').update({stok:0}).eq('profil',currentProfil);
+  if(error){ toast('Gagal: '+error.message,'err'); return; }
+  toast('Semua stok dikosongkan');
+  closeModal();
+  await fetchTable('stok_barang');
+  renderModule('stok');
+}
+
+function printStok(){
+  const rows=(cache['stok_barang']||[]).slice().sort((a,b)=>String(a.nama_barang||'').localeCompare(String(b.nama_barang||'')));
+  if(!rows.length){ toast('Belum ada barang untuk dicetak','err'); return; }
+  const now=new Date();
+  const tgl=now.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  const jam=now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+  let totModal=0, totJual=0;
+  const body=rows.map((r,i)=>{
+    const stok=Number(r.stok)||0, hb=Number(r.harga_beli)||0, hj=Number(r.harga_jual)||0;
+    const nilai=stok*hb; totModal+=nilai; totJual+=stok*hj;
+    const low=stok<=Number(r.stok_minimum||0);
+    return `<tr>
+      <td class="c">${i+1}</td>
+      <td>${esc(r.nama_barang||'-')}</td>
+      <td>${esc(r.kategori||'-')}</td>
+      <td class="r ${low?'low':''}">${stok} ${esc(r.satuan||'')}</td>
+      <td class="r">${hb?rupiah(hb):'-'}</td>
+      <td class="r">${hj?rupiah(hj):'-'}</td>
+      <td class="r">${nilai?rupiah(nilai):'-'}</td>
+    </tr>`;
+  }).join('');
+  const potensiLaba=totJual-totModal;
+  const html=`
+    <div class="pr-head">
+      <img src="logo-web.png" alt="" />
+      <div>
+        <div class="pr-title">MAQSOF MDIIA</div>
+        <div class="pr-sub">Laporan Stok Barang — ${esc(profilLabel())}</div>
+      </div>
+      <div class="pr-date">Dicetak: ${tgl}<br>Pukul ${jam} WIB</div>
+    </div>
+    <table class="pr-table">
+      <thead><tr>
+        <th class="c">No</th><th>Nama Barang</th><th>Kategori</th>
+        <th class="r">Stok</th><th class="r">Harga Beli</th><th class="r">Harga Jual</th><th class="r">Nilai Stok</th>
+      </tr></thead>
+      <tbody>${body}</tbody>
+      <tfoot><tr><td colspan="6" class="r"><b>Total Nilai Stok (modal)</b></td><td class="r"><b>${rupiah(totModal)}</b></td></tr></tfoot>
+    </table>
+    <div class="pr-summary">
+      <div><span>Jenis barang</span><b>${rows.length}</b></div>
+      <div><span>Nilai stok (modal)</span><b>${rupiah(totModal)}</b></div>
+      <div><span>Potensi penjualan</span><b>${rupiah(totJual)}</b></div>
+      <div><span>Potensi laba</span><b>${rupiah(potensiLaba)}</b></div>
+    </div>
+    <div class="pr-foot">MAQSOF MDIIA · Manajemen Warung — Dokumen ini dibuat otomatis oleh aplikasi.</div>
+  `;
+  let area=document.getElementById('printArea');
+  if(!area){ area=document.createElement('div'); area.id='printArea'; document.body.appendChild(area); }
+  area.innerHTML=html;
+  window.print();
+}
+
+/* ============================================================
    PENGATURAN
    ============================================================ */
 function renderPengaturan(){
@@ -1187,7 +1317,7 @@ function renderPengaturan(){
       <div class="card-head"><div class="card-title">Tentang Aplikasi</div></div>
       <div class="card-body" style="color:var(--ink-soft);font-size:14px;line-height:1.65">
         <b style="color:var(--ink)">MAQSOF MDIIA</b> — aplikasi manajemen warung untuk mencatat pemasukan, pengeluaran, biaya operasional, gaji, dan stok barang. Data tersimpan aman di server Supabase dan hanya bisa diakses pengguna terdaftar.
-        <div style="margin-top:10px;font-size:12.5px;color:var(--ink-faint)">Versi 1.3 · Login aktif</div>
+        <div style="margin-top:10px;font-size:12.5px;color:var(--ink-faint)">Versi 1.4 · Login aktif</div>
       </div>
     </div>
   `;

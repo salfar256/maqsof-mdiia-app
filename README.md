@@ -72,6 +72,10 @@ Masukkan email & password akun tadi → aplikasi terbuka. Sesi tetap tersimpan s
 - **Pemasukan / Pengeluaran / Biaya Operasional / Gaji** — tombol **Tambah** untuk mencatat, ikon pensil untuk ubah, tempat sampah untuk hapus.
 - **Stok Barang** — atur *stok minimum*; bila stok menipis muncul peringatan di Beranda.
   - **Beli paketan/dus?** Isi *Isi per paket* dan *Harga beli per paket*, harga beli per satuan dihitung otomatis (mis. Rp18.000 ÷ 24 = Rp750). Laba per satuan juga muncul otomatis.
+  - **Cetak PDF** — tombol *Cetak PDF* membuat laporan stok rapi (bisa disimpan sebagai PDF lewat dialog cetak, di HP maupun komputer).
+  - **Kosongkan** — tombol *Kosongkan* menjadikan semua stok 0 sekaligus (ada peringatan dulu; nama & harga barang tetap tersimpan).
+- **Filter** — di setiap halaman ada dropdown filter (per kategori / status) di sebelah kotak pencarian.
+- **Ringkasan Beranda** — angka *Operasional* dan *Gaji* sudah termasuk entri di modul Pengeluaran yang berkategori operasional/gaji (mis. Listrik, Sewa, Transport → Operasional; Gaji → Gaji).
 - **Kategori** — di form, ketik kategori baru atau pilih dari daftar saran; kategori baru langsung tersimpan.
 - **Ganti halaman (Putri/Putra)** — buka **Pengaturan → Halaman/Wajah Warung**, pilih *Maqsof Putri* atau *Maqsof Putra*. Data tiap halaman terpisah total.
 - **Pemilih bulan** (kanan atas) — mengganti periode laporan.
