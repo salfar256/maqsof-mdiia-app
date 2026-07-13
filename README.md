@@ -78,7 +78,8 @@ Masukkan email & password akun tadi → aplikasi terbuka. Sesi tetap tersimpan s
 - **Ringkasan Beranda** — angka *Operasional* dan *Gaji* sudah termasuk entri di modul Pengeluaran yang berkategori operasional/gaji (mis. Listrik, Sewa, Transport → Operasional; Gaji → Gaji).
 - **Kategori** — di form, ketik kategori baru atau pilih dari daftar saran; kategori baru langsung tersimpan.
 - **Ganti halaman (Putri/Putra)** — buka **Pengaturan → Halaman/Wajah Warung**, pilih *Maqsof Putri* atau *Maqsof Putra*. Data tiap halaman terpisah total.
-- **Pemilih bulan** (kanan atas) — mengganti periode laporan.
+- **Pemilih bulan** (kanan atas) — mengganti periode laporan per bulan.
+- **Rentang bulan di Beranda** — di Beranda, pemilih berubah jadi *dari–sampai* sehingga ringkasan & grafik bisa menampilkan beberapa bulan sekaligus (mis. Jan–Jul), bukan hanya satu bulan.
 - **Keluar** ada di menu **Pengaturan** (di HP: tab **Lainnya**).
 
 ---
