@@ -6,6 +6,7 @@ Aplikasi web untuk mengelola **pemasukan, pengeluaran, biaya operasional, gaji k
 > Kalau database kamu sudah dibuat sebelumnya, buka **Supabase → SQL Editor**, jalankan isi file **`update.sql`** satu kali agar 3 fitur baru berfungsi:
 > 1. **Harga beli otomatis** untuk pembelian paketan/dus (mis. 1 dus isi 24 = Rp18.000 → otomatis Rp750/satuan, plus hitung laba per satuan).
 > 2. **Kategori bisa diketik sendiri** (ketik baru atau pilih dari saran) di Pemasukan, Pengeluaran, Operasional, dan Stok.
+> 3. **Kategori tersimpan di server** — daftar kategori (tambah/hapus) kini seragam di semua HP, bukan per perangkat.
 > 3. **Dua halaman terpisah**: *Maqsof Putri* & *Maqsof Putra* — tampilan sama, data berbeda. Ganti lewat menu **Pengaturan**.
 
 Isi folder:
@@ -74,6 +75,8 @@ Masukkan email & password akun tadi → aplikasi terbuka. Sesi tetap tersimpan s
   - **Beli paketan/dus?** Isi *Isi per paket* dan *Harga beli per paket*, harga beli per satuan dihitung otomatis (mis. Rp18.000 ÷ 24 = Rp750). Laba per satuan juga muncul otomatis.
   - **Cetak PDF** — tombol *Cetak PDF* membuat laporan stok rapi (bisa disimpan sebagai PDF lewat dialog cetak, di HP maupun komputer).
   - **Kosongkan** — tombol *Kosongkan* menjadikan semua stok 0 sekaligus (ada peringatan dulu; nama & harga barang tetap tersimpan).
+  - **Edit stok kilat** — ubah angka stok langsung di tabel (tanpa buka form); muncul tombol ✓ untuk simpan dan ✗ untuk batal.
+- **Kelola kategori** — di form, pilih *⚙️ Kelola kategori…* untuk menambah atau **menghapus** kategori dari daftar pilihan (Enter/tombol Tambah untuk menambah, ikon tempat sampah untuk menghapus). Menghapus hanya menyembunyikan dari daftar; data lama tetap aman.
 - **Filter** — di setiap halaman ada dropdown filter (per kategori / status) di sebelah kotak pencarian.
 - **Ringkasan Beranda** — angka *Operasional* dan *Gaji* sudah termasuk entri di modul Pengeluaran yang berkategori operasional/gaji (mis. Listrik, Sewa, Transport → Operasional; Gaji → Gaji).
 - **Kategori** — di form, ketik kategori baru atau pilih dari daftar saran; kategori baru langsung tersimpan.

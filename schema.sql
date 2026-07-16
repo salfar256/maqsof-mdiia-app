@@ -59,6 +59,17 @@ create table if not exists stok_barang (
   created_at timestamptz not null default now()
 );
 
+-- 6) KATEGORI KUSTOM (daftar pilihan kategori/satuan yang bisa ditambah/dihapus) --
+create table if not exists kategori_kustom (
+  id uuid primary key default gen_random_uuid(),
+  profil text default 'putri',
+  modul text not null,
+  field text not null,
+  nama text not null,
+  tipe text not null default 'added',   -- 'added' | 'hidden'
+  created_at timestamptz not null default now()
+);
+
 -- ============================================================
 -- KOLOM TAMBAHAN (aman dijalankan berulang / untuk upgrade)
 --   profil            : memisahkan data "Maqsof Putri" & "Maqsof Putra"
@@ -84,6 +95,7 @@ alter table pengeluaran        enable row level security;
 alter table biaya_operasional  enable row level security;
 alter table gaji               enable row level security;
 alter table stok_barang        enable row level security;
+alter table kategori_kustom    enable row level security;
 
 -- Hapus policy lama jika ada (biar bisa dijalankan ulang tanpa error)
 drop policy if exists "akses_publik" on pemasukan;
@@ -96,12 +108,14 @@ drop policy if exists "akses_login" on pengeluaran;
 drop policy if exists "akses_login" on biaya_operasional;
 drop policy if exists "akses_login" on gaji;
 drop policy if exists "akses_login" on stok_barang;
+drop policy if exists "akses_login" on kategori_kustom;
 
 create policy "akses_login" on pemasukan          for all to authenticated using (true) with check (true);
 create policy "akses_login" on pengeluaran        for all to authenticated using (true) with check (true);
 create policy "akses_login" on biaya_operasional  for all to authenticated using (true) with check (true);
 create policy "akses_login" on gaji               for all to authenticated using (true) with check (true);
 create policy "akses_login" on stok_barang        for all to authenticated using (true) with check (true);
+create policy "akses_login" on kategori_kustom    for all to authenticated using (true) with check (true);
 
 -- ============================================================
 -- (OPSIONAL) DATA CONTOH — hapus tanda komentar (--) untuk mengisi contoh

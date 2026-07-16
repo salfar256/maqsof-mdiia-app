@@ -252,6 +252,29 @@ td.num.out{color:var(--expense)}
 .btn-danger-ghost{color:var(--expense)}
 .btn-danger-ghost:hover{border-color:var(--expense);background:var(--expense-soft)}
 
+/* Edit stok inline */
+.stok-edit{display:inline-flex;align-items:center;gap:7px;justify-content:flex-end}
+.stok-input{width:66px;text-align:right;font-family:var(--mono);font-weight:700;font-size:13.5px;border:1.5px solid var(--line);border-radius:9px;padding:6px 8px;background:var(--surface-2);outline:none;transition:.15s;-moz-appearance:textfield}
+.stok-input:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 3px var(--brand-soft)}
+.stok-edit.low .stok-input{color:var(--expense);border-color:#E9C4BA}
+.stok-edit.editing .stok-input{border-color:var(--amber);background:#fff;box-shadow:0 0 0 3px var(--amber-soft)}
+.stok-unit{font-size:12px;color:var(--ink-soft);min-width:0}
+.stok-act{display:inline-flex;gap:4px}
+.stok-ok,.stok-no{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;border:1px solid var(--line);transition:.12s}
+.stok-ok svg,.stok-no svg{width:15px;height:15px}
+.stok-ok{background:var(--income-soft);color:var(--income);border-color:#BFE0CD}
+.stok-ok:hover{background:var(--income);color:#fff}
+.stok-no{background:var(--expense-soft);color:var(--expense);border-color:#E9C4BA}
+.stok-no:hover{background:var(--expense);color:#fff}
+
+/* Pengelola kategori */
+.cat-list{display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow-y:auto;margin-bottom:14px}
+.cat-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 13px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;font-weight:600;font-size:14px}
+.cat-add{display:flex;gap:8px}
+.cat-add input{flex:1;padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;background:var(--surface-2);outline:none}
+.cat-add input:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 3px var(--brand-soft)}
+.cat-add .btn{white-space:nowrap}
+
 /* ===== Cetak PDF (print) ===== */
 #printArea{display:none}
 @media print{
@@ -485,6 +508,11 @@ td.num.out{color:var(--expense)}
 <!-- Modal -->
 <div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
   <div class="modal" id="modal"></div>
+</div>
+
+<!-- Overlay pengelola kategori (menumpuk di atas form) -->
+<div class="overlay" id="catOverlay" style="z-index:70" onclick="if(event.target===this)closeCatManager()">
+  <div class="modal" id="catModal"></div>
 </div>
 
 <!-- Toasts -->
@@ -725,13 +753,14 @@ async function doLogout(){
   toast('Berhasil keluar');
 }
 
-function enterApp(){
+async function enterApp(){
   document.getElementById('login').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('monthPick').value=currentMonth;
   document.getElementById('rangeFrom').value=monthFrom;
   document.getElementById('rangeTo').value=monthTo;
   applyProfilUI();
+  await loadCats();
   go('beranda');
 }
 
@@ -740,12 +769,13 @@ function applyProfilUI(){
   document.title = profilLabel()+' — MAQSOF MDIIA';
 }
 
-function setProfil(p){
+async function setProfil(p){
   if(!PROFILES[p] || p===currentProfil){ if(currentView==='pengaturan')renderPengaturan(); return; }
   currentProfil=p;
   localStorage.setItem('mm_profil',p);
   Object.keys(cache).forEach(k=>delete cache[k]);
   applyProfilUI();
+  await loadCats();
   toast('Beralih ke '+profilLabel());
   go(currentView==='pengaturan'?'beranda':currentView);
 }
@@ -1059,7 +1089,15 @@ function renderCell(r,col){
   if(col.fmt==='status'){ const paid=(v==='Dibayar'); return `<td><span class="pill ${paid?'pill-ok':'pill-warn'}">${esc(v||'-')}</span></td>`; }
   if(col.fmt==='stok'){
     const low=Number(r.stok)<=Number(r.stok_minimum||0);
-    return `<td class="num"><span class="pill ${low?'pill-low':'pill-ok'}">${Number(v)||0} ${esc(r.satuan||'')}</span></td>`;
+    const v0=Number(r.stok)||0;
+    return `<td><div class="stok-edit ${low?'low':''}">
+      <input type="number" step="any" min="0" class="stok-input" value="${v0}" data-id="${r.id}" data-orig="${v0}" oninput="onStokInput(this)" onfocus="this.select()" onkeydown="if(event.key==='Enter')confirmStok('${r.id}');if(event.key==='Escape')cancelStok('${r.id}')" />
+      <span class="stok-unit">${esc(r.satuan||'')}</span>
+      <span class="stok-act" id="stokact-${r.id}" style="display:none">
+        <button class="stok-ok" title="Simpan" onclick="confirmStok('${r.id}')">${svg('<path d="M20 6L9 17l-5-5"/>')}</button>
+        <button class="stok-no" title="Batal" onclick="cancelStok('${r.id}')">${svg('<path d="M18 6L6 18M6 6l12 12"/>')}</button>
+      </span>
+    </div></td>`;
   }
   if(col.fmt==='laba'){
     const hb=Number(r.harga_beli)||0, hj=Number(r.harga_jual)||0;
@@ -1074,6 +1112,104 @@ function jsonAttr(obj){ return esc(JSON.stringify(obj)); }
 /* ============================================================
    FORM MODAL (add / edit)
    ============================================================ */
+/* ============================================================
+   KATEGORI: penyimpanan (tambah/hapus) per profil, per field
+   ============================================================ */
+/* Kategori kustom kini disimpan di Supabase (tabel kategori_kustom) agar seragam
+   di semua perangkat. Bila tabel belum dibuat, otomatis fallback ke localStorage. */
+let catRows=[];        // baris kategori_kustom untuk profil aktif
+let catTableOk=false;  // true bila tabel tersedia di Supabase
+
+async function loadCats(){
+  catRows=[]; catTableOk=false;
+  if(!sb) return;
+  try{
+    const { data, error } = await sb.from('kategori_kustom').select('*').eq('profil',currentProfil);
+    if(error) throw error;
+    catRows=data||[]; catTableOk=true;
+    await migrateLocalCats();
+  }catch(e){ catTableOk=false; } // tabel belum ada → pakai localStorage sementara
+}
+/* migrasi sekali dari localStorage lama ke Supabase */
+async function migrateLocalCats(){
+  if(localStorage.getItem('mm_catsync_'+currentProfil)==='1') return;
+  const s=loadCatStore(); const ins=[];
+  Object.keys(s).forEach(k=>{
+    const parts=k.split('.'); if(parts[0]!==currentProfil) return;
+    const view=parts[1], field=parts.slice(2).join('.'); const cfg=s[k]||{};
+    (cfg.added||[]).forEach(nama=>{ if(!catRows.some(r=>r.modul===view&&r.field===field&&r.tipe==='added'&&String(r.nama)===String(nama))) ins.push({profil:currentProfil,modul:view,field,nama:String(nama),tipe:'added'}); });
+    (cfg.hidden||[]).forEach(nama=>{ if(!catRows.some(r=>r.modul===view&&r.field===field&&r.tipe==='hidden'&&String(r.nama)===String(nama))) ins.push({profil:currentProfil,modul:view,field,nama:String(nama),tipe:'hidden'}); });
+  });
+  if(ins.length){ try{ await sb.from('kategori_kustom').insert(ins); const {data}=await sb.from('kategori_kustom').select('*').eq('profil',currentProfil); catRows=data||[]; }catch(e){} }
+  localStorage.setItem('mm_catsync_'+currentProfil,'1');
+}
+
+/* fallback localStorage */
+function loadCatStore(){ try{ return JSON.parse(localStorage.getItem('mm_cats')||'{}'); }catch(e){ return {}; } }
+function saveCatStore(s){ localStorage.setItem('mm_cats', JSON.stringify(s)); }
+function lsKey(view,field){ return currentProfil+'.'+view+'.'+field; }
+
+function baseCatOptions(view,field){
+  const M=MODULES[view]; const fdef=(M.fields||[]).find(f=>f.name===field)||{};
+  const table=tableOf(view);
+  const existing=[...new Set((cache[table]||[]).map(r=>r[field]).filter(Boolean).map(String))];
+  return [...new Set([...(fdef.options||[]),...existing])];
+}
+function catCfg(view,field){
+  if(catTableOk){
+    const rows=catRows.filter(r=>r.modul===view&&r.field===field);
+    return { added:rows.filter(r=>r.tipe==='added').map(r=>r.nama), hidden:rows.filter(r=>r.tipe==='hidden').map(r=>r.nama) };
+  }
+  const s=loadCatStore(); return s[lsKey(view,field)] || {added:[],hidden:[]};
+}
+function catOptions(view,field,currentVal){
+  const cfg=catCfg(view,field);
+  const hidden=new Set((cfg.hidden||[]).map(String));
+  let opts=[...new Set([...baseCatOptions(view,field),...(cfg.added||[])])].filter(o=>!hidden.has(String(o)));
+  if(currentVal && !opts.some(o=>String(o)===String(currentVal))) opts.unshift(String(currentVal));
+  return opts;
+}
+async function catAdd(view,field,v){
+  v=String(v).trim(); if(!v) return;
+  if(catTableOk){
+    const rows=catRows.filter(r=>r.modul===view&&r.field===field);
+    const hiddenRow=rows.find(r=>r.tipe==='hidden'&&String(r.nama)===String(v));
+    if(hiddenRow){ try{ await sb.from('kategori_kustom').delete().eq('id',hiddenRow.id); }catch(e){} }
+    const already = rows.some(r=>r.tipe==='added'&&String(r.nama)===String(v)) || baseCatOptions(view,field).map(String).includes(String(v));
+    if(!already){ try{ await sb.from('kategori_kustom').insert([{profil:currentProfil,modul:view,field,nama:v,tipe:'added'}]); }catch(e){} }
+    await loadCats();
+  } else {
+    const cfg=catCfg(view,field);
+    cfg.hidden=(cfg.hidden||[]).filter(x=>String(x)!==String(v));
+    if(!(cfg.added||[]).map(String).includes(String(v)) && !baseCatOptions(view,field).map(String).includes(String(v))) cfg.added.push(v);
+    const s=loadCatStore(); s[lsKey(view,field)]=cfg; saveCatStore(s);
+  }
+}
+async function catDelete(view,field,v){
+  if(catTableOk){
+    const rows=catRows.filter(r=>r.modul===view&&r.field===field);
+    const addedRow=rows.find(r=>r.tipe==='added'&&String(r.nama)===String(v));
+    if(addedRow){ try{ await sb.from('kategori_kustom').delete().eq('id',addedRow.id); }catch(e){} }
+    else {
+      const has=rows.some(r=>r.tipe==='hidden'&&String(r.nama)===String(v));
+      if(!has){ try{ await sb.from('kategori_kustom').insert([{profil:currentProfil,modul:view,field,nama:String(v),tipe:'hidden'}]); }catch(e){} }
+    }
+    await loadCats();
+  } else {
+    const cfg=catCfg(view,field);
+    cfg.added=(cfg.added||[]).filter(x=>String(x)!==String(v));
+    if(!(cfg.hidden||[]).map(String).includes(String(v))) cfg.hidden.push(v);
+    const s=loadCatStore(); s[lsKey(view,field)]=cfg; saveCatStore(s);
+  }
+}
+function catSelectHTML(view,f,val){
+  const opts=catOptions(view,f.name,val);
+  return '<option value="">- pilih -</option>'+
+    opts.map(o=>`<option value="${esc(o)}" ${String(val)===String(o)?'selected':''}>${esc(o)}</option>`).join('')+
+    '<option value="__NEW__">➕ Tambah baru…</option>'+
+    '<option value="__MANAGE__">⚙️ Kelola kategori…</option>';
+}
+
 function openForm(view,existing){
   const M=MODULES[view];
   const isEdit=!!existing;
@@ -1087,17 +1223,12 @@ function openForm(view,existing){
     const oninput = f.oninput?` oninput="${f.oninput}"`:'';
     const after = f.after||'';
 
-    // Kategori / satuan bebas ketik + saran (datalist)
+    // Kategori: dropdown dengan opsi tambah & kelola/hapus
     if(f.type==='category'){
-      const existingVals=[...new Set((cache[table]||[]).map(r=>r[f.name]).filter(Boolean))];
-      let opts=[...new Set([...(f.options||[]),...existingVals])];
-      if(val && !opts.some(o=>String(o)===String(val))) opts.unshift(String(val));
       const extra = f.oninput?(';'+f.oninput):'';
       return `<div class="field"><label>${f.label}${f.required?' *':''}</label>
-        <select data-name="${f.name}" onchange="catSelect(this)${extra}">
-          <option value="">- pilih -</option>
-          ${opts.map(o=>`<option value="${esc(o)}" ${String(val)===String(o)?'selected':''}>${esc(o)}</option>`).join('')}
-          <option value="__NEW__">➕ Tambah baru…</option>
+        <select data-name="${f.name}" onchange="catSelect(this,'${view}','${f.name}')${extra}">
+          ${catSelectHTML(view,f,val)}
         </select>
         ${f.hint?`<div class="field-hint">${f.hint}</div>`:''}${after}</div>`;
     }
@@ -1125,23 +1256,83 @@ function openForm(view,existing){
     </div>`;
   document.getElementById('overlay').classList.add('show');
   document.body.style.overflow='hidden';
+  window._formView=view;
   if(view==='stok'){ syncUnitLabels(); calcUnitPrice(); calcMargin(); }
   setTimeout(()=>{const f=document.querySelector('#formFields input,#formFields select');if(f)f.focus();},60);
 }
 
 /* ---- Kalkulasi harga beli otomatis dari paket/dus ---- */
 function fInput(name){ return document.querySelector('#formFields [data-name="'+name+'"]'); }
-/* Pilih kategori dari dropdown, atau tambah baru lewat opsi "➕ Tambah baru…" */
-function catSelect(sel){
-  if(sel.value!=='__NEW__'){ sel.dataset.prev=sel.value; return; }
-  const v=(prompt('Ketik nama baru:')||'').trim();
-  if(v){
-    let opt=[...sel.options].find(o=>o.value===v);
-    if(!opt){ opt=document.createElement('option'); opt.value=v; opt.textContent=v; sel.insertBefore(opt, sel.querySelector('option[value="__NEW__"]')); }
-    sel.value=v; sel.dataset.prev=v;
-  } else {
-    sel.value=sel.dataset.prev||'';
+/* Pilih kategori; tambah baru (tersimpan) atau buka pengelola */
+function catSelect(sel,view,field){
+  if(sel.value==='__MANAGE__'){ sel.value=sel.dataset.prev||''; openCatManager(view,field); return; }
+  if(sel.value==='__NEW__'){
+    const v=(prompt('Ketik nama baru:')||'').trim();
+    if(v){
+      // tampilkan langsung, lalu simpan ke server
+      let opt=[...sel.options].find(o=>o.value===v);
+      if(!opt){ opt=document.createElement('option'); opt.value=v; opt.textContent=v; sel.insertBefore(opt, sel.querySelector('option[value="__NEW__"]')); }
+      sel.value=v; sel.dataset.prev=v;
+      catAdd(view,field,v).then(refreshFormCats);
+    } else { sel.value=sel.dataset.prev||''; }
+    return;
   }
+  sel.dataset.prev=sel.value;
+}
+
+/* ---- Pengelola kategori (tambah & hapus) ---- */
+let _catCtx=null;
+function openCatManager(view,field){ _catCtx={view,field}; renderCatManager(); document.getElementById('catOverlay').classList.add('show'); }
+function closeCatManager(){ document.getElementById('catOverlay').classList.remove('show'); _catCtx=null; refreshFormCats(); }
+function renderCatManager(){
+  const {view,field}=_catCtx;
+  const M=MODULES[view]; const fdef=(M.fields||[]).find(f=>f.name===field)||{};
+  const opts=catOptions(view,field,''); _catCtx.opts=opts;
+  const list = opts.length ? opts.map((o,i)=>`
+    <div class="cat-row">
+      <span>${esc(o)}</span>
+      <button class="icon-btn danger" title="Hapus dari daftar" onclick="deleteCat(${i})">${svg(ICONS.trash)}</button>
+    </div>`).join('') : '<div class="mini-meta" style="padding:12px 0;text-align:center">Belum ada kategori</div>';
+  document.getElementById('catModal').innerHTML=`
+    <div class="modal-head">
+      <h3>Kelola Kategori</h3>
+      <button class="icon-btn" onclick="closeCatManager()">${svg('<path d="M18 6L6 18M6 6l12 12"/>')}</button>
+    </div>
+    <div class="modal-body">
+      ${catTableOk?'':`<div class="warn-box" style="background:var(--amber-soft);border-color:#EBCF89;color:var(--amber-dark)">${svg('<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6A2 2 0 0 0 22 18L13.7 3.9a2 2 0 0 0-3.4 0z"/>')}<div>Tersimpan sementara di perangkat ini saja. Jalankan <b>update.sql</b> di Supabase agar kategori seragam di semua HP.</div></div>`}
+      <div class="field-hint" style="margin-bottom:10px">Daftar pilihan untuk <b>${esc(fdef.label||field)}</b> di halaman ${esc(profilLabel())}.</div>
+      <div class="cat-list">${list}</div>
+      <div class="cat-add">
+        <input id="catAddInput" placeholder="Kategori baru..." onkeydown="if(event.key==='Enter'){event.preventDefault();addCatFromManager();}" />
+        <button class="btn btn-primary btn-sm" onclick="addCatFromManager()">${svg('<path d="M12 5v14M5 12h14"/>')} Tambah</button>
+      </div>
+      <div class="field-hint" style="margin-top:12px">Menghapus kategori hanya menghilangkannya dari daftar pilihan. Data lama yang memakai kategori itu tetap tersimpan.</div>
+      <div class="modal-foot"><button class="btn btn-primary" onclick="closeCatManager()">Selesai</button></div>
+    </div>`;
+}
+async function deleteCat(i){
+  const {view,field}=_catCtx; const val=_catCtx.opts[i]; if(val==null) return;
+  await catDelete(view,field,val);
+  renderCatManager(); refreshFormCats();
+  toast('Kategori "'+val+'" dihapus dari daftar');
+}
+async function addCatFromManager(){
+  const inp=document.getElementById('catAddInput'); const v=(inp.value||'').trim(); if(!v) return;
+  const {view,field}=_catCtx;
+  inp.value='';
+  await catAdd(view,field,v);
+  renderCatManager(); refreshFormCats();
+}
+/* Perbarui semua dropdown kategori di form yang sedang terbuka */
+function refreshFormCats(){
+  const view=window._formView; if(!view||!MODULES[view]) return;
+  (MODULES[view].fields||[]).filter(f=>f.type==='category').forEach(f=>{
+    const sel=document.querySelector('#formFields select[data-name="'+f.name+'"]');
+    if(!sel) return;
+    let cur=sel.value; if(cur==='__NEW__'||cur==='__MANAGE__') cur=sel.dataset.prev||'';
+    sel.innerHTML=catSelectHTML(view,f,cur);
+    sel.value=cur; sel.dataset.prev=cur;
+  });
 }
 function syncUnitLabels(){
   const sat=(fInput('satuan')?.value||'satuan').trim()||'satuan';
@@ -1223,6 +1414,28 @@ async function doDelete(view,id){
 function closeModal(){
   document.getElementById('overlay').classList.remove('show');
   document.body.style.overflow='';
+}
+
+/* ---- Edit stok langsung dari tabel ---- */
+function onStokInput(input){
+  const id=input.dataset.id;
+  const act=document.getElementById('stokact-'+id);
+  const changed = input.value!=='' && String(input.value)!==String(input.dataset.orig);
+  if(act) act.style.display = changed?'inline-flex':'none';
+  const wrap=input.closest('.stok-edit'); if(wrap) wrap.classList.toggle('editing',changed);
+}
+async function confirmStok(id){
+  const input=document.querySelector('.stok-input[data-id="'+id+'"]');
+  if(!input) return;
+  const val=Number(input.value);
+  if(input.value===''||isNaN(val)||val<0){ toast('Jumlah stok tidak valid','err'); return; }
+  const ok=await updateRow('stok_barang',id,{stok:val});
+  if(ok){ toast('Stok diperbarui'); await fetchTable('stok_barang'); renderModule('stok'); }
+}
+function cancelStok(id){
+  const input=document.querySelector('.stok-input[data-id="'+id+'"]');
+  if(!input) return;
+  input.value=input.dataset.orig; onStokInput(input); input.blur();
 }
 
 /* ============================================================
@@ -1351,7 +1564,7 @@ function renderPengaturan(){
       <div class="card-head"><div class="card-title">Tentang Aplikasi</div></div>
       <div class="card-body" style="color:var(--ink-soft);font-size:14px;line-height:1.65">
         <b style="color:var(--ink)">MAQSOF MDIIA</b> — aplikasi manajemen warung untuk mencatat pemasukan, pengeluaran, biaya operasional, gaji, dan stok barang. Data tersimpan aman di server Supabase dan hanya bisa diakses pengguna terdaftar.
-        <div style="margin-top:10px;font-size:12.5px;color:var(--ink-faint)">Versi 1.5 · Login aktif</div>
+        <div style="margin-top:10px;font-size:12.5px;color:var(--ink-faint)">Versi 1.7 · Login aktif</div>
       </div>
     </div>
   `;
