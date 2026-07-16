@@ -176,6 +176,8 @@ a{color:inherit}
 
 /* low stock list */
 .mini-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.stok-scroll{max-height:360px;overflow-y:auto}
+.stok-scroll thead th{position:sticky;top:0;z-index:1}
 .mini-row:last-child{border-bottom:none}
 .mini-name{font-weight:600;font-size:14px}
 .mini-meta{font-size:12px;color:var(--ink-soft)}
@@ -300,6 +302,11 @@ td.num.out{color:var(--expense)}
   .pr-summary span{display:block;font-size:10.5px;color:#666;margin-bottom:3px}
   .pr-summary b{font-size:14px;color:#15594C}
   .pr-foot{margin-top:20px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#888;text-align:center}
+  .ck-legend{font-size:11px;color:#444;margin:2px 0 12px;padding:8px 10px;background:#f6f4ee!important;border-radius:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .ck-table td{padding:9px 9px}
+  .ck-table .ck{display:inline-block;width:15px;height:15px;border:1.5px solid #555;border-radius:3px}
+  .ck-table .fill{border-bottom:1px solid #bbb}
+  .ck-table tbody tr{page-break-inside:avoid}
 }
 .profil-list{display:flex;flex-direction:column;gap:10px}
 .profil-opt{display:flex;align-items:center;gap:13px;width:100%;text-align:left;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;background:var(--surface-2);transition:.15s}
@@ -960,6 +967,26 @@ async function renderBeranda(){
     </div>
 
     <div class="card" style="margin-top:16px">
+      <div class="card-head">
+        <div class="card-title">Semua Stok Barang</div>
+        <span class="pill pill-ok">${stk.length} barang</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        ${stk.length ? `<div class="stok-scroll"><table><thead><tr>
+            <th>Nama Barang</th><th>Kategori</th><th style="text-align:right">Stok</th>
+          </tr></thead><tbody>${[...stk].sort((a,b)=>{
+            const la=Number(a.stok)<=Number(a.stok_minimum||0)?0:1, lb=Number(b.stok)<=Number(b.stok_minimum||0)?0:1;
+            return la!==lb ? la-lb : String(a.nama_barang||'').localeCompare(String(b.nama_barang||''));
+          }).map(r=>{ const low=Number(r.stok)<=Number(r.stok_minimum||0); return `<tr>
+            <td style="font-weight:600">${esc(r.nama_barang||'-')}</td>
+            <td>${r.kategori?`<span class="tag">${esc(r.kategori)}</span>`:'-'}</td>
+            <td style="text-align:right"><span class="pill ${low?'pill-low':'pill-ok'}">${Number(r.stok)||0} ${esc(r.satuan||'')}</span></td>
+          </tr>`; }).join('')}</tbody></table></div>`
+          : `<div class="empty" style="padding:34px 10px"><div class="mini-meta">Belum ada barang di stok</div></div>`}
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
       <div class="card-head"><div class="card-title">Transaksi Terbaru</div></div>
       <div class="card-body" style="padding:0">
         ${recent.length ? `<table><tbody>${recent.map(r=>`
@@ -984,6 +1011,19 @@ function statCard(icoClass,ico,label,val){
 /* ============================================================
    MODULE LIST VIEW
    ============================================================ */
+function stokSummaryHTML(rows){
+  const nilai=rows.reduce((a,r)=>a+(Number(r.stok)||0)*(Number(r.harga_beli)||0),0);
+  const potensiJual=rows.reduce((a,r)=>a+(Number(r.stok)||0)*(Number(r.harga_jual)||0),0);
+  const potensiLaba=potensiJual-nilai;
+  const low=rows.filter(r=>Number(r.stok)<=Number(r.stok_minimum||0)).length;
+  return `<div class="stat-grid stat-grid-5" style="margin-bottom:16px">
+      ${statCard('i-stock',svg(ICONS.box),'Jenis barang',rows.length).replace('<span class="cur">Rp</span>','')}
+      ${statCard('i-expense',svg('<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 4-5"/>'),'Nilai stok (modal)',nilai)}
+      ${statCard('i-info',svg('<path d="M12 5v14"/><path d="M6 11l6 6 6-6"/>'),'Potensi penjualan',potensiJual)}
+      ${statCard('i-income',svg('<path d="M20 6L9 17l-5-5"/>'),'Potensi laba',potensiLaba)}
+      <div class="stat"><div class="stat-ico ${low?'i-expense':'i-income'}">${svg('<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6A2 2 0 0 0 22 18L13.7 3.9a2 2 0 0 0-3.4 0z"/>')}</div><div class="stat-label">Stok menipis</div><div class="stat-val" style="font-size:22px">${low}</div></div>
+    </div>`;
+}
 async function renderModule(view){
   const M=MODULES[view]; const table=tableOf(view);
   const c=document.getElementById('content');
@@ -1002,17 +1042,7 @@ async function renderModule(view){
       <div class="stat-val" style="font-size:22px">${rupiah(total)}</div></div>
     </div>`;
   } else {
-    const nilai=rows.reduce((a,r)=>a+(Number(r.stok)||0)*(Number(r.harga_beli)||0),0);
-    const potensiJual=rows.reduce((a,r)=>a+(Number(r.stok)||0)*(Number(r.harga_jual)||0),0);
-    const potensiLaba=potensiJual-nilai;
-    const low=rows.filter(r=>Number(r.stok)<=Number(r.stok_minimum||0)).length;
-    extraSummary=`<div class="stat-grid stat-grid-5" style="margin-bottom:16px">
-      ${statCard('i-stock',svg(ICONS.box),'Jenis barang',rows.length).replace('<span class="cur">Rp</span>','')}
-      ${statCard('i-expense',svg('<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 4-5"/>'),'Nilai stok (modal)',nilai)}
-      ${statCard('i-info',svg('<path d="M12 5v14"/><path d="M6 11l6 6 6-6"/>'),'Potensi penjualan',potensiJual)}
-      ${statCard('i-income',svg('<path d="M20 6L9 17l-5-5"/>'),'Potensi laba',potensiLaba)}
-      <div class="stat"><div class="stat-ico ${low?'i-expense':'i-income'}">${svg('<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6A2 2 0 0 0 22 18L13.7 3.9a2 2 0 0 0-3.4 0z"/>')}</div><div class="stat-label">Stok menipis</div><div class="stat-val" style="font-size:22px">${low}</div></div>
-    </div>`;
+    extraSummary=`<div id="stokSummary">${stokSummaryHTML(rows)}</div>`;
   }
 
   // opsi filter kriteria dari data yang ada
@@ -1030,6 +1060,7 @@ async function renderModule(view){
 
   const stokActions = (view==='stok') ? `
       <button class="btn btn-ghost" onclick="printStok()" title="Cetak / simpan PDF">${svg('<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/>')}<span class="hide-sm">Cetak PDF</span></button>
+      <button class="btn btn-ghost" onclick="printChecklist()" title="Cetak ceklis stok untuk karyawan">${svg('<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>')}<span class="hide-sm">Ceklis Stok</span></button>
       <button class="btn btn-ghost btn-danger-ghost" onclick="askEmptyStock()" title="Kosongkan semua stok">${svg('<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/>')}<span class="hide-sm">Kosongkan</span></button>` : '';
 
   c.innerHTML=configBanner()+extraSummary+`
@@ -1429,8 +1460,21 @@ async function confirmStok(id){
   if(!input) return;
   const val=Number(input.value);
   if(input.value===''||isNaN(val)||val<0){ toast('Jumlah stok tidak valid','err'); return; }
+  const btnWrap=document.getElementById('stokact-'+id);
   const ok=await updateRow('stok_barang',id,{stok:val});
-  if(ok){ toast('Stok diperbarui'); await fetchTable('stok_barang'); renderModule('stok'); }
+  if(!ok) return;
+  toast('Stok diperbarui');
+  // Perbarui data di memori, TANPA render ulang seluruh tabel (posisi & pencarian tetap)
+  const row=(cache['stok_barang']||[]).find(r=>String(r.id)===String(id));
+  if(row) row.stok=val;
+  input.dataset.orig=String(val);
+  onStokInput(input);                       // sembunyikan tombol ✓/✗
+  const wrap=input.closest('.stok-edit');
+  if(wrap && row) wrap.classList.toggle('low', Number(val)<=Number(row.stok_minimum||0));
+  // Perbarui kartu ringkasan di atas (nilai stok, potensi, stok menipis)
+  const sum=document.getElementById('stokSummary');
+  if(sum) sum.innerHTML=stokSummaryHTML(cache['stok_barang']||[]);
+  input.blur();
 }
 function cancelStok(id){
   const input=document.querySelector('.stok-input[data-id="'+id+'"]');
@@ -1521,6 +1565,51 @@ function printStok(){
   window.print();
 }
 
+/* Cetak CEKLIS STOK untuk karyawan: nama barang + kotak Habis/Sisa + kolom jumlah sisa */
+function printChecklist(){
+  const rows=(cache['stok_barang']||[]).slice().sort((a,b)=>{
+    const ka=String(a.kategori||'zzz'), kb=String(b.kategori||'zzz');
+    if(ka!==kb) return ka.localeCompare(kb);
+    return String(a.nama_barang||'').localeCompare(String(b.nama_barang||''));
+  });
+  if(!rows.length){ toast('Belum ada barang untuk dicetak','err'); return; }
+  const now=new Date();
+  const tgl=now.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  const body=rows.map((r,i)=>`<tr>
+      <td class="c">${i+1}</td>
+      <td>${esc(r.nama_barang||'-')}</td>
+      <td class="c"><span class="ck"></span></td>
+      <td class="c"><span class="ck"></span></td>
+      <td class="fill"></td>
+    </tr>`).join('');
+  const html=`
+    <div class="pr-head">
+      <img src="logo-web.png" alt="" />
+      <div>
+        <div class="pr-title">MAQSOF MDIIA</div>
+        <div class="pr-sub">Ceklis Stok Barang — ${esc(profilLabel())}</div>
+      </div>
+      <div class="pr-date">Tanggal: ${tgl}<br>Petugas: ____________________</div>
+    </div>
+    <div class="ck-legend">Beri tanda ✓ pada kolom <b>Habis</b> jika barang habis, atau <b>Sisa</b> jika masih ada — lalu tulis jumlahnya di kolom <b>Jumlah Sisa</b>.</div>
+    <table class="pr-table ck-table">
+      <thead><tr>
+        <th class="c" style="width:34px">No</th>
+        <th>Nama Barang</th>
+        <th class="c" style="width:60px">Habis</th>
+        <th class="c" style="width:60px">Sisa</th>
+        <th style="width:150px">Jumlah Sisa</th>
+      </tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    <div class="pr-foot">MAQSOF MDIIA · Manajemen Warung — Lembar catatan stok fisik.</div>
+  `;
+  let area=document.getElementById('printArea');
+  if(!area){ area=document.createElement('div'); area.id='printArea'; document.body.appendChild(area); }
+  area.innerHTML=html;
+  window.print();
+}
+
 /* ============================================================
    PENGATURAN
    ============================================================ */
@@ -1564,7 +1653,7 @@ function renderPengaturan(){
       <div class="card-head"><div class="card-title">Tentang Aplikasi</div></div>
       <div class="card-body" style="color:var(--ink-soft);font-size:14px;line-height:1.65">
         <b style="color:var(--ink)">MAQSOF MDIIA</b> — aplikasi manajemen warung untuk mencatat pemasukan, pengeluaran, biaya operasional, gaji, dan stok barang. Data tersimpan aman di server Supabase dan hanya bisa diakses pengguna terdaftar.
-        <div style="margin-top:10px;font-size:12.5px;color:var(--ink-faint)">Versi 1.7 · Login aktif</div>
+        <div style="margin-top:10px;font-size:12.5px;color:var(--ink-faint)">Versi 1.8 · Login aktif</div>
       </div>
     </div>
   `;

@@ -75,6 +75,9 @@ Masukkan email & password akun tadi → aplikasi terbuka. Sesi tetap tersimpan s
   - **Beli paketan/dus?** Isi *Isi per paket* dan *Harga beli per paket*, harga beli per satuan dihitung otomatis (mis. Rp18.000 ÷ 24 = Rp750). Laba per satuan juga muncul otomatis.
   - **Cetak PDF** — tombol *Cetak PDF* membuat laporan stok rapi (bisa disimpan sebagai PDF lewat dialog cetak, di HP maupun komputer).
   - **Kosongkan** — tombol *Kosongkan* menjadikan semua stok 0 sekaligus (ada peringatan dulu; nama & harga barang tetap tersimpan).
+  - **Ceklis Stok** — tombol *Ceklis Stok* mencetak lembar catatan untuk karyawan: nama barang + kotak centang **Habis**/**Sisa** + kolom kosong untuk menulis jumlah sisa (untuk stok opname manual).
+  - **Edit stok kilat tanpa pindah posisi** — saat mengubah stok langsung di tabel, halaman tidak lagi ter-refresh; pencarian & posisi scroll tetap seperti semula.
+- **Beranda menampilkan seluruh stok** — kartu *Semua Stok Barang* menampilkan semua barang (yang menipis di atas).
   - **Edit stok kilat** — ubah angka stok langsung di tabel (tanpa buka form); muncul tombol ✓ untuk simpan dan ✗ untuk batal.
 - **Kelola kategori** — di form, pilih *⚙️ Kelola kategori…* untuk menambah atau **menghapus** kategori dari daftar pilihan (Enter/tombol Tambah untuk menambah, ikon tempat sampah untuk menghapus). Menghapus hanya menyembunyikan dari daftar; data lama tetap aman.
 - **Filter** — di setiap halaman ada dropdown filter (per kategori / status) di sebelah kotak pencarian.
