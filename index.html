@@ -269,6 +269,19 @@ td.num.out{color:var(--expense)}
 .stok-no{background:var(--expense-soft);color:var(--expense);border-color:#E9C4BA}
 .stok-no:hover{background:var(--expense);color:#fff}
 
+/* Edit harga beli (keseluruhan) inline */
+.harga-edit{display:inline-flex;flex-direction:column;align-items:flex-end;gap:3px}
+.harga-line{display:inline-flex;align-items:center;gap:7px;justify-content:flex-end}
+.harga-rp{font-size:12px;color:var(--ink-faint);font-family:var(--mono)}
+.harga-input{width:92px;text-align:right;font-family:var(--mono);font-weight:700;font-size:13.5px;border:1.5px solid var(--line);border-radius:9px;padding:6px 8px;background:var(--surface-2);outline:none;transition:.15s;-moz-appearance:textfield}
+.harga-input:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 3px var(--brand-soft)}
+.harga-line.editing .harga-input{border-color:var(--amber);background:#fff;box-shadow:0 0 0 3px var(--amber-soft)}
+.harga-sub{font-size:11px;color:var(--ink-faint);font-family:var(--mono);white-space:nowrap}
+.harga-act{display:inline-flex;gap:4px}
+
+/* Daftar stok menipis di Beranda (scroll bila banyak) */
+.mini-scroll{max-height:300px;overflow-y:auto;margin:0 -2px;padding:0 2px}
+
 /* Pengelola kategori */
 .cat-list{display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow-y:auto;margin-bottom:14px}
 .cat-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 13px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;font-weight:600;font-size:14px}
@@ -664,7 +677,7 @@ const MODULES = {
       {name:'nama_barang',label:'Nama Barang'},
       {name:'kategori',label:'Kategori',fmt:'tag'},
       {name:'stok',label:'Stok',fmt:'stok',align:'right'},
-      {name:'harga_beli',label:'H. Beli/satuan',fmt:'money',align:'right'},
+      {name:'harga_beli',label:'H. Beli (total)',fmt:'hbeli',align:'right'},
       {name:'harga_jual',label:'H. Jual/satuan',fmt:'money',align:'right'},
       {name:'_laba',label:'Laba/satuan',fmt:'laba',align:'right'},
     ],
@@ -956,11 +969,13 @@ async function renderBeranda(){
           <span class="pill ${lowStock.length?'pill-low':'pill-ok'}">${lowStock.length} barang</span>
         </div>
         <div class="card-body" style="padding-top:4px">
-          ${lowStock.length ? lowStock.slice(0,6).map(r=>`
+          ${lowStock.length ? `<div class="mini-scroll">`+[...lowStock]
+            .sort((a,b)=>(Number(a.stok)||0)-(Number(b.stok)||0))
+            .map(r=>`
             <div class="mini-row">
-              <div><div class="mini-name">${esc(r.nama_barang)}</div><div class="mini-meta">${esc(r.kategori||'-')}</div></div>
-              <span class="pill pill-low">${r.stok} ${esc(r.satuan||'')}</span>
-            </div>`).join('')
+              <div><div class="mini-name">${esc(r.nama_barang)}</div><div class="mini-meta">${esc(r.kategori||'-')} · min ${Number(r.stok_minimum)||0}</div></div>
+              <span class="pill pill-low">${Number(r.stok)||0} ${esc(r.satuan||'')}</span>
+            </div>`).join('')+`</div>`
             : `<div class="empty" style="padding:26px 10px"><div class="mini-meta">Semua stok aman 👍</div></div>`}
         </div>
       </div>
@@ -1122,7 +1137,7 @@ function renderCell(r,col){
     const low=Number(r.stok)<=Number(r.stok_minimum||0);
     const v0=Number(r.stok)||0;
     return `<td><div class="stok-edit ${low?'low':''}">
-      <input type="number" step="any" min="0" class="stok-input" value="${v0}" data-id="${r.id}" data-orig="${v0}" oninput="onStokInput(this)" onfocus="this.select()" onkeydown="if(event.key==='Enter')confirmStok('${r.id}');if(event.key==='Escape')cancelStok('${r.id}')" />
+      <input type="number" step="any" min="0" autocomplete="off" inputmode="decimal" class="stok-input" value="${v0}" data-id="${r.id}" data-orig="${v0}" oninput="onStokInput(this)" onfocus="this.select()" onkeydown="if(event.key==='Enter')confirmStok('${r.id}');if(event.key==='Escape')cancelStok('${r.id}')" />
       <span class="stok-unit">${esc(r.satuan||'')}</span>
       <span class="stok-act" id="stokact-${r.id}" style="display:none">
         <button class="stok-ok" title="Simpan" onclick="confirmStok('${r.id}')">${svg('<path d="M20 6L9 17l-5-5"/>')}</button>
@@ -1130,11 +1145,37 @@ function renderCell(r,col){
       </span>
     </div></td>`;
   }
+  if(col.fmt==='hbeli'){
+    // Harga beli KESELURUHAN (per paket/dus) — bukan per satuan.
+    // Bila ada isi per paket, harga satuan dihitung otomatis = total ÷ isi.
+    const isi=Number(r.isi_per_paket)||0;
+    const unit=Number(r.harga_beli)||0;
+    let whole=Number(r.harga_beli_paket)||0;
+    if(!whole) whole = isi>0 ? Math.round(unit*isi) : unit;   // rekonstruksi bila belum tersimpan
+    const sat=esc(r.satuan||'satuan');
+    const sub = isi>0
+      ? `÷ ${isi} = Rp${rupiahShort(unit)}/${sat}`
+      : (unit ? `Rp${rupiahShort(unit)}/${sat}` : '&nbsp;');
+    return `<td><div class="harga-edit">
+      <div class="harga-line" id="hbline-${r.id}">
+        <span class="harga-rp">Rp</span>
+        <input type="number" step="any" min="0" autocomplete="off" inputmode="decimal" class="harga-input"
+          value="${whole}" data-id="${r.id}" data-orig="${whole}" data-isi="${isi}"
+          oninput="onHargaInput(this)" onfocus="this.select()"
+          onkeydown="if(event.key==='Enter')confirmHarga('${r.id}');if(event.key==='Escape')cancelHarga('${r.id}')" />
+        <span class="harga-act" id="hbact-${r.id}" style="display:none">
+          <button class="stok-ok" title="Simpan" onclick="confirmHarga('${r.id}')">${svg('<path d="M20 6L9 17l-5-5"/>')}</button>
+          <button class="stok-no" title="Batal" onclick="cancelHarga('${r.id}')">${svg('<path d="M18 6L6 18M6 6l12 12"/>')}</button>
+        </span>
+      </div>
+      <div class="harga-sub" id="hbsub-${r.id}">${sub}</div>
+    </div></td>`;
+  }
   if(col.fmt==='laba'){
     const hb=Number(r.harga_beli)||0, hj=Number(r.harga_jual)||0;
-    if(!hb || !hj) return `<td class="num" style="color:var(--ink-faint)">-</td>`;
+    if(!hb || !hj) return `<td class="num" id="laba-${r.id}" style="color:var(--ink-faint)">-</td>`;
     const laba=hj-hb, pos=laba>=0;
-    return `<td class="num ${pos?'in':'out'}">${pos?'+':'-'}${rupiah(Math.abs(laba))}</td>`;
+    return `<td class="num ${pos?'in':'out'}" id="laba-${r.id}">${pos?'+':'-'}${rupiah(Math.abs(laba))}</td>`;
   }
   return `<td style="${alignR?'text-align:right':''}">${v?esc(v):'-'}</td>`;
 }
@@ -1258,19 +1299,24 @@ function openForm(view,existing){
     if(f.type==='category'){
       const extra = f.oninput?(';'+f.oninput):'';
       return `<div class="field"><label>${f.label}${f.required?' *':''}</label>
-        <select data-name="${f.name}" onchange="catSelect(this,'${view}','${f.name}')${extra}">
+        <select data-name="${f.name}" autocomplete="off" onchange="catSelect(this,'${view}','${f.name}')${extra}">
           ${catSelectHTML(view,f,val)}
         </select>
         ${f.hint?`<div class="field-hint">${f.hint}</div>`:''}${after}</div>`;
     }
     if(f.type==='select'){
       const opts=f.options.map(o=>`<option value="${esc(o)}" ${String(val)===o?'selected':''}>${esc(o)}</option>`).join('');
-      return `<div class="field"><label>${f.label}${f.required?' *':''}</label><select data-name="${f.name}"${oninput}>${!f.required?'<option value="">- pilih -</option>':''}${opts}</select>${f.hint?`<div class="field-hint">${f.hint}</div>`:''}${after}</div>`;
+      return `<div class="field"><label>${f.label}${f.required?' *':''}</label><select data-name="${f.name}" autocomplete="off"${oninput}>${!f.required?'<option value="">- pilih -</option>':''}${opts}</select>${f.hint?`<div class="field-hint">${f.hint}</div>`:''}${after}</div>`;
     }
     const type = f.type==='money'||f.type==='number' ? 'number' : f.type;
     const cls = f.type==='money'?'field money':'field';
     const step = f.type==='money'?' step="any" min="0"':(f.type==='number'?' step="any" min="0"':'');
-    return `<div class="${cls}"><label>${f.label}${f.required?' *':''}</label><input data-name="${f.name}" type="${type}"${step} placeholder="${f.ph||''}" value="${esc(val)}"${oninput} />${f.hint?`<div class="field-hint">${f.hint}</div>`:''}${after}</div>`;
+    // Matikan autofill/saran bawaan browser: mencegah nilai kolom lain (mis. Stok Minimum)
+    // ikut terisi otomatis ke kolom Jumlah Stok saat mengetik di HP.
+    const guard = (f.type==='money'||f.type==='number')
+      ? ' autocomplete="off" autocorrect="off" inputmode="decimal"'
+      : ' autocomplete="off"';
+    return `<div class="${cls}"><label>${f.label}${f.required?' *':''}</label><input data-name="${f.name}" type="${type}"${step}${guard} placeholder="${f.ph||''}" value="${esc(val)}"${oninput} />${f.hint?`<div class="field-hint">${f.hint}</div>`:''}${after}</div>`;
   }).join('');
 
   document.getElementById('modal').innerHTML=`
@@ -1480,6 +1526,57 @@ function cancelStok(id){
   const input=document.querySelector('.stok-input[data-id="'+id+'"]');
   if(!input) return;
   input.value=input.dataset.orig; onStokInput(input); input.blur();
+}
+
+/* ---- Edit harga beli (keseluruhan) langsung dari tabel ---- */
+function labaCellHTML(hb,hj){
+  hb=Number(hb)||0; hj=Number(hj)||0;
+  if(!hb || !hj) return {cls:'num', style:'color:var(--ink-faint)', html:'-'};
+  const laba=hj-hb, pos=laba>=0;
+  return {cls:'num '+(pos?'in':'out'), style:'', html:(pos?'+':'-')+rupiah(Math.abs(laba))};
+}
+function onHargaInput(input){
+  const id=input.dataset.id;
+  const act=document.getElementById('hbact-'+id);
+  const changed = input.value!=='' && String(input.value)!==String(input.dataset.orig);
+  if(act) act.style.display = changed?'inline-flex':'none';
+  const line=document.getElementById('hbline-'+id); if(line) line.classList.toggle('editing',changed);
+  // pratinjau harga satuan saat mengetik
+  const isi=Number(input.dataset.isi)||0;
+  const whole=Number(input.value)||0;
+  const row=(cache['stok_barang']||[]).find(r=>String(r.id)===String(id));
+  const sat=esc((row&&row.satuan)||'satuan');
+  const unit=isi>0 ? Math.round(whole/isi) : whole;
+  const sub=document.getElementById('hbsub-'+id);
+  if(sub) sub.innerHTML = isi>0 ? `÷ ${isi} = Rp${rupiahShort(unit)}/${sat}` : (unit?`Rp${rupiahShort(unit)}/${sat}`:'&nbsp;');
+}
+async function confirmHarga(id){
+  const input=document.querySelector('.harga-input[data-id="'+id+'"]');
+  if(!input) return;
+  const whole=Number(input.value);
+  if(input.value===''||isNaN(whole)||whole<0){ toast('Harga beli tidak valid','err'); return; }
+  const isi=Number(input.dataset.isi)||0;
+  const unit=isi>0 ? Math.round(whole/isi) : whole;   // harga per satuan (untuk laba & nilai stok)
+  const ok=await updateRow('stok_barang',id,{harga_beli:unit, harga_beli_paket:whole});
+  if(!ok) return;
+  toast('Harga beli diperbarui');
+  // Perbarui data di memori TANPA render ulang tabel (pencarian & posisi tetap)
+  const row=(cache['stok_barang']||[]).find(r=>String(r.id)===String(id));
+  if(row){ row.harga_beli=unit; row.harga_beli_paket=whole; }
+  input.dataset.orig=String(whole);
+  onHargaInput(input);
+  // Perbarui sel Laba/satuan di baris yang sama
+  const labaTd=document.getElementById('laba-'+id);
+  if(labaTd && row){ const L=labaCellHTML(row.harga_beli,row.harga_jual); labaTd.className=L.cls; labaTd.setAttribute('style',L.style); labaTd.innerHTML=L.html; }
+  // Perbarui kartu ringkasan (nilai stok / potensi laba)
+  const sum=document.getElementById('stokSummary');
+  if(sum) sum.innerHTML=stokSummaryHTML(cache['stok_barang']||[]);
+  input.blur();
+}
+function cancelHarga(id){
+  const input=document.querySelector('.harga-input[data-id="'+id+'"]');
+  if(!input) return;
+  input.value=input.dataset.orig; onHargaInput(input); input.blur();
 }
 
 /* ============================================================
