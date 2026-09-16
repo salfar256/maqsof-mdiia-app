@@ -477,33 +477,116 @@ td.num.out{color:var(--expense)}
 @media(max-width:860px){
   .shell{grid-template-columns:1fr}
   .side{display:none}
-  .topbar{padding:16px 18px}
-  .content{padding:18px 16px 96px}
-  .stat-grid{grid-template-columns:1fr 1fr;gap:12px}
+
+  /* Topbar: judul di atas, pemilih bulan penuh selebar layar (tidak terpotong) */
+  .topbar{padding:14px 16px 12px;gap:10px;align-items:flex-start;flex-direction:column}
+  .page-title{font-size:20px}
+  .page-sub{font-size:12.5px}
+  .topbar-actions{width:100%;flex-wrap:wrap;gap:8px}
+  .month-pick{flex:1;min-width:0;padding:9px 12px}
+  .month-pick input{width:100%;min-width:0;flex:1;font-size:15px}
+  .month-range{width:100%}
+  .month-range input{width:auto;min-width:0;flex:1}
+  #addBtn{flex:none;padding:10px 14px}
+
+  .content{padding:16px 14px calc(104px + env(safe-area-inset-bottom));max-width:100%}
+  .stat-grid,.stat-grid-5{grid-template-columns:1fr 1fr;gap:11px}
+  .stat{padding:14px 14px 13px;border-radius:14px}
+  .stat-ico{width:34px;height:34px;border-radius:10px;margin-bottom:10px}
+  .stat-ico svg{width:18px;height:18px}
+  .stat-label{font-size:12px}
+  .stat-val{font-size:20px;word-break:normal;overflow-wrap:anywhere}
   .dash-2col{grid-template-columns:1fr}
-  .receipt-big{font-size:29px}
-  .page-title{font-size:19px}
-  .modal{max-width:520px;border-radius:22px;margin:0 8px 0}
-  .overlay{align-items:flex-end}
-  .month-pick input{width:120px}
-  .month-range input{width:96px}
-  .topbar-actions{flex:1;justify-content:flex-end}
+  .receipt{padding:20px 18px}
+  .receipt-big{font-size:30px}
+  .receipt-split{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;margin-top:18px}
+  .card-head{padding:14px 16px}
+  .card-body{padding:14px 16px}
+
+  /* Toolbar: pencarian penuh, tombol sejajar */
+  .toolbar{gap:8px}
+  .toolbar .search{flex:1 1 100%;order:-1}
+  .toolbar .btn{flex:1;justify-content:center;padding:10px 12px}
+  .filter-wrap{flex:1}
+
+  /* Sentuhan jari: target minimal nyaman */
+  .icon-btn{width:38px;height:38px}
+  .icon-btn svg{width:17px;height:17px}
+  .btn{padding:11px 15px}
+
+  /* Cegah layar auto-zoom saat kotak isian disentuh (iOS) */
+  input,select,textarea,.search input,.modal input,.modal select{font-size:16px}
+  .stok-input,.harga-input,.bc-cell .bc-input,.qty-ctl input{font-size:16px}
+  .stok-input{width:72px}
+  .harga-input{width:104px}
+
+  /* Modal jadi lembar geser dari bawah, isi bisa digulir */
+  .modal{max-width:100%;border-radius:22px 22px 0 0;margin:0;max-height:90vh;display:flex;flex-direction:column}
+  .modal-head{padding:18px 18px 10px;flex:none;position:sticky;top:0;background:var(--surface);z-index:2;border-radius:22px 22px 0 0}
+  .modal-body{padding:4px 18px calc(18px + env(safe-area-inset-bottom));overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .modal-foot{flex-wrap:wrap}
+  .modal-foot .btn{min-width:120px}
+
+  /* Kasir di HP */
+  .scan-box{padding:14px;gap:11px}
+  .scan-ico{width:40px;height:40px}
+  .scan-main{flex:1 1 100%;order:-1}
+  #scanInput{font-size:17px;padding:13px}
+  .scan-box .btn{flex:1;justify-content:center}
+  .kasir-total{order:-1;position:static}
+  .tot-val{font-size:26px}
+  .cart-table td{padding:10px 12px}
+  .ci-name{font-size:14px}
+  .qty-ctl button{width:32px;height:32px}
+  .qty-ctl input{width:44px}
+
+  .hide-sm{display:none}
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius)}
+  table{min-width:560px}
+  .stok-scroll{max-height:300px}
+
+  /* Bar bawah */
   .botnav{
     display:flex;position:fixed;bottom:0;left:0;right:0;z-index:40;
     background:var(--surface);border-top:1px solid var(--line);
-    padding:7px 4px calc(7px + env(safe-area-inset-bottom));justify-content:space-around;
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));justify-content:space-around;
     box-shadow:0 -6px 20px rgba(20,36,30,.06);
   }
-  .botnav button{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-faint);font-size:10px;font-weight:700;padding:4px 8px;flex:1;border-radius:10px}
+  .botnav button{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    color:var(--ink-faint);font-size:10.5px;font-weight:700;padding:6px 4px;flex:1;
+    border-radius:12px;min-height:52px;
+  }
   .botnav button svg{width:22px;height:22px}
-  .botnav button.active{color:var(--brand)}
-  .hide-sm{display:none}
-  .tbl-wrap{overflow-x:auto}
-  table{min-width:560px}
+  .botnav button.active{color:var(--brand);background:var(--brand-soft)}
 }
+
+/* Lembar menu lengkap (HP) */
+.menu-sheet .menu-profil{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+.menu-grid{display:flex;flex-direction:column;gap:7px}
+.menu-item{
+  display:flex;align-items:center;gap:13px;width:100%;text-align:left;
+  padding:12px 13px;border:1px solid var(--line);border-radius:14px;
+  background:var(--surface-2);transition:.12s;min-height:60px;
+}
+.menu-item:hover,.menu-item:active{border-color:var(--brand);background:var(--brand-soft)}
+.menu-item.active{border-color:var(--brand);background:var(--brand-soft)}
+.mi-ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);color:var(--brand);flex:none}
+.mi-ico svg{width:20px;height:20px}
+.menu-item.active .mi-ico{background:var(--brand);color:#fff;border-color:var(--brand)}
+.mi-txt{display:flex;flex-direction:column;min-width:0;flex:1}
+.mi-txt b{font-size:14.5px;font-weight:700}
+.mi-txt small{font-size:12px;color:var(--ink-soft);margin-top:1px}
+.mi-check{width:18px;height:18px;color:var(--brand);flex:none}
+
 @media(max-width:420px){
-  .stat-grid{grid-template-columns:1fr 1fr}
-  .stat-val{font-size:20px}
+  .stat-grid,.stat-grid-5{grid-template-columns:1fr 1fr;gap:10px}
+  .stat-val{font-size:18px}
+  .receipt-big{font-size:26px}
+  .botnav button{font-size:9.5px;padding:6px 2px}
+  .botnav button svg{width:21px;height:21px}
+  .scan-box .btn span{display:none}
+  .scan-box .btn{flex:0 0 auto;padding:11px 14px}
 }
 </style>
 </head>
@@ -614,16 +697,18 @@ td.num.out{color:var(--expense)}
   <button data-view="pemasukan" onclick="go('pemasukan')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M6 11l6 6 6-6"/></svg>Masuk
   </button>
-  <button data-view="pengeluaran" onclick="go('pengeluaran')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 13l6-6 6 6"/></svg>Keluar
-  </button>
   <button data-view="stok" onclick="go('stok')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>Stok
   </button>
-  <button data-view="pengaturan" onclick="go('pengaturan')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v4l2.5 2.5"/></svg>Lainnya
+  <button id="btnMore" onclick="openMenuSheet()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Menu
   </button>
 </nav>
+</div>
+
+<!-- Menu lengkap (HP) -->
+<div class="overlay" id="menuOverlay" onclick="if(event.target===this)closeMenuSheet()">
+  <div class="modal menu-sheet" id="menuSheet"></div>
 </div>
 
 <!-- Modal -->
@@ -939,6 +1024,9 @@ function go(view){
   currentView=view;
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   document.querySelectorAll('.botnav button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  // Tombol "Menu" ikut menyala bila halaman aktif ada di dalam lembar menu
+  const moreBtn=document.getElementById('btnMore');
+  if(moreBtn) moreBtn.classList.toggle('active', !BOTNAV_VIEWS.includes(view));
   const isModule = !!MODULES[view];
   const titles={beranda:['Beranda','Ringkasan warung kamu'],pengaturan:['Pengaturan','Kelola koneksi & aplikasi'],kasir:['Kasir / Scan','Tembak barcode, barang masuk struk']};
   let t,s;
@@ -982,6 +1070,46 @@ function monthsBetween(from,to){
   return res;
 }
 function openAddForCurrent(){ if(MODULES[currentView]) openForm(currentView); }
+
+/* ============================================================
+   MENU LENGKAP (HP)
+   Layar HP tidak muat menampung semua halaman di bar bawah,
+   jadi semua halaman dikumpulkan di satu lembar menu.
+   ============================================================ */
+const NAV_ITEMS=[
+  {v:'beranda',    l:'Beranda',           d:'Ringkasan warung',        i:'<path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/>'},
+  {v:'kasir',      l:'Kasir / Scan',      d:'Tembak barcode, buat struk', i:'<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8"/>'},
+  {v:'pemasukan',  l:'Pemasukan',         d:'Uang masuk',              i:'<path d="M12 5v14"/><path d="M6 11l6 6 6-6"/>'},
+  {v:'pengeluaran',l:'Pengeluaran',       d:'Uang keluar',             i:'<path d="M12 19V5"/><path d="M6 13l6-6 6 6"/>'},
+  {v:'operasional',l:'Biaya Operasional', d:'Listrik, sewa, dll',      i:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'},
+  {v:'gaji',       l:'Gaji Karyawan',     d:'Upah & gaji',             i:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 3.5a3.2 3.2 0 0 1 0 6.4"/><path d="M18 14c2 .9 3.5 2.8 3.5 5"/>'},
+  {v:'stok',       l:'Stok Barang',       d:'Persediaan & harga',      i:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>'},
+  {v:'pengaturan', l:'Pengaturan',        d:'Profil & akun',           i:'<circle cx="12" cy="12" r="8.5"/><path d="M12 8v4l2.5 2.5"/>'},
+];
+/* Halaman yang punya tombol sendiri di bar bawah */
+const BOTNAV_VIEWS=['beranda','kasir','pemasukan','stok'];
+
+function openMenuSheet(){
+  const items=NAV_ITEMS.map(n=>`
+    <button class="menu-item ${currentView===n.v?'active':''}" onclick="goFromSheet('${n.v}')">
+      <span class="mi-ico">${svg(n.i)}</span>
+      <span class="mi-txt"><b>${esc(n.l)}</b><small>${esc(n.d)}</small></span>
+      ${currentView===n.v?svg('<path d="M20 6L9 17l-5-5"/>','class="mi-check"'):''}
+    </button>`).join('');
+  document.getElementById('menuSheet').innerHTML=`
+    <div class="modal-head">
+      <div><h3>Menu</h3><div class="menu-profil">${esc(profilLabel())}</div></div>
+      <button class="icon-btn" onclick="closeMenuSheet()">${svg('<path d="M18 6L6 18M6 6l12 12"/>')}</button>
+    </div>
+    <div class="modal-body"><div class="menu-grid">${items}</div></div>`;
+  document.getElementById('menuOverlay').classList.add('show');
+  document.body.style.overflow='hidden';
+}
+function closeMenuSheet(){
+  document.getElementById('menuOverlay').classList.remove('show');
+  document.body.style.overflow='';
+}
+function goFromSheet(v){ closeMenuSheet(); go(v); }
 
 /* ============================================================
    KASIR / SCAN BARANG
@@ -1394,14 +1522,14 @@ function printStruk(){
    hilang (mis. sehabis klik), ketikan bisa nyasar. */
 document.addEventListener('click',(e)=>{
   if(currentView!=='kasir') return;
-  if(document.getElementById('overlay')?.classList.contains('show')) return;
+  if(document.querySelector('.overlay.show')) return;   // ada modal/lembar menu terbuka
   const t=e.target;
   if(t.closest('input,select,textarea,button')) return;
   focusScan();
 });
 document.addEventListener('keydown',(e)=>{
   if(currentView!=='kasir') return;
-  if(document.getElementById('overlay')?.classList.contains('show')) return;
+  if(document.querySelector('.overlay.show')) return;   // ada modal/lembar menu terbuka
   const ae=document.activeElement;
   if(ae && ae.tagName && /INPUT|SELECT|TEXTAREA/.test(ae.tagName)) return;
   const el=document.getElementById('scanInput'); if(!el) return;
