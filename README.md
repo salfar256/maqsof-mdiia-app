@@ -17,7 +17,8 @@ Isi folder:
 | `schema.sql` | Skema database + aturan keamanan Supabase |
 | `update.sql` | Migrasi untuk database lama (jalankan bila upgrade) |
 | `manifest.webmanifest` | Info aplikasi untuk ikon di HP |
-| `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `favicon-*.png`, `logo-web.png`, `logo.png` | Logo & ikon |
+| `sw.js` | Service worker: syarat pasang aplikasi & cadangan saat offline |
+| `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, `favicon-*.png`, `logo-web.png`, `logo.png` | Logo & ikon |
 | `netlify.toml` | Konfigurasi hosting Netlify |
 
 > URL & kunci Supabase sudah tertanam di `index.html`. Kamu tinggal menyiapkan database & akun login.
@@ -65,6 +66,23 @@ Masukkan email & password akun tadi → aplikasi terbuka. Sesi tetap tersimpan s
 2. **Android:** menu ⋮ → **Tambahkan ke layar utama**.
    **iPhone:** tombol Share → **Add to Home Screen**.
 3. Ikon **MAQSOF MDIIA** akan muncul di layar HP dan terbuka layar penuh seperti aplikasi.
+
+---
+
+## 🔒 Mode Tablet Santri (PWA + layar disematkan) — v1.9
+Aplikasi kini bisa **dipasang sebagai aplikasi** (PWA). Saat dibuka dari ikon aplikasi, **tombol kembali dikunci**: hanya menutup menu/lembar yang terbuka, tidak pernah mengeluarkan aplikasi.
+
+**Pasang di tablet Xiaomi**
+1. Buka situsnya dengan **Google Chrome** (bukan Mi Browser).
+2. Menu **⋮** → **Instal aplikasi** (atau *Tambahkan ke layar utama* → *Instal*). Bisa juga lewat **Pengaturan → Aplikasi di Perangkat → Pasang Aplikasi**.
+3. Buka MAQSOF MDIIA **dari ikon di layar utama**. Di Pengaturan harus tertulis *"Berjalan sebagai aplikasi · tombol kembali dikunci"*.
+
+**Sematkan layar**
+1. Pengaturan tablet → cari **"Sematkan layar"** / *Screen pinning* → aktifkan.
+2. Buka MAQSOF MDIIA → buka **Aplikasi Terbaru** → tekan lama kartu MAQSOF → **Sematkan**.
+3. **Sentuh layar sekali**, lalu uji tombol kembali.
+
+Catatan: penahan diisi ulang setiap kali layar disentuh atau alat scan mengetik. Di Chrome lama tanpa *CloseWatcher*, lebih dari 25 tekanan kembali beruntun tanpa menyentuh layar sekali pun masih bisa lolos.
 
 ---
 

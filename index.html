@@ -6,13 +6,14 @@
 <title>MAQSOF MDIIA — Manajemen Warung</title>
 <meta name="description" content="Aplikasi manajemen warung: pemasukan, pengeluaran, biaya operasional, gaji, dan stok barang." />
 <meta name="theme-color" content="#15594C" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="MAQSOF MDIIA" />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
-<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
@@ -457,6 +458,13 @@ td.num.out{color:var(--expense)}
 .toast svg{width:18px;height:18px;flex:none}
 .toast.ok{background:#1f5a44}
 .toast.err{background:#a5402f}
+.toast.info{background:#3d4a43}
+/* Cegah tarik-untuk-muat-ulang & efek pantul di mode aplikasi */
+html,body{overscroll-behavior-y:none}
+.pwa-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pwa-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;font-size:12.5px;font-weight:700;background:var(--brand-soft);color:var(--brand)}
+.pwa-pill.off{background:var(--amber-soft);color:var(--amber-dark)}
+.pwa-pill svg{width:14px;height:14px}
 @keyframes toastIn{from{transform:translateX(30px);opacity:0}to{transform:translateX(0);opacity:1}}
 
 /* ============ LOGIN SCREEN ============ */
@@ -965,7 +973,9 @@ function svg(paths,extra=''){ return '<svg viewBox="0 0 24 24" fill="none" strok
 function toast(msg,type='ok'){
   const el=document.createElement('div');
   el.className='toast '+type;
-  const ic = type==='err' ? '<path d="M12 8v4M12 16h.01"/><circle cx="12" cy="12" r="9"/>' : '<path d="M20 6L9 17l-5-5"/>';
+  const ic = type==='err' ? '<path d="M12 8v4M12 16h.01"/><circle cx="12" cy="12" r="9"/>'
+           : type==='info' ? '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
+           : '<path d="M20 6L9 17l-5-5"/>';
   el.innerHTML=svg(ic)+'<span>'+esc(msg)+'</span>';
   document.getElementById('toasts').appendChild(el);
   setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(30px)';el.style.transition='.3s';setTimeout(()=>el.remove(),300);},2600);
@@ -2741,11 +2751,13 @@ function renderPengaturan(){
       </div>
     </div>
 
+    ${pwaCard()}
+
     <div class="card" style="max-width:560px;margin-top:16px">
       <div class="card-head"><div class="card-title">Tentang Aplikasi</div></div>
       <div class="card-body" style="color:var(--ink-soft);font-size:14px;line-height:1.65">
         <b style="color:var(--ink)">MAQSOF MDIIA</b> — aplikasi manajemen warung untuk mencatat pemasukan, pengeluaran, biaya operasional, gaji, dan stok barang. Data tersimpan aman di server Supabase dan hanya bisa diakses pengguna terdaftar.
-        <div style="margin-top:10px;font-size:12.5px;color:var(--ink-faint)">Versi 1.8 · Login aktif</div>
+        <div style="margin-top:10px;font-size:12.5px;color:var(--ink-faint)">Versi ${APP_VERSION} · Login aktif</div>
       </div>
     </div>
   `;
@@ -2762,6 +2774,145 @@ function configBanner(){
 function loadingBlock(){
   return `<div class="empty" style="padding:60px 20px"><div class="mini-meta">Memuat data…</div></div>`;
 }
+
+/* ============================================================
+   APLIKASI (PWA) & PENAHAN TOMBOL KEMBALI
+   ------------------------------------------------------------
+   Dipakai santri di tablet dengan layar disematkan. Tombol kembali
+   tidak boleh mengeluarkan aplikasi (yang tersisa hanya layar logo).
+
+   Dua lapis penahan, hanya aktif saat dibuka sebagai aplikasi:
+   1. CloseWatcher — fitur Chrome baru untuk menangkap tombol kembali.
+   2. Langkah riwayat cadangan — 25 langkah, diisi ulang setiap kali
+      layar disentuh / tombol ditekan. Harus dibuat DI DALAM sentuhan,
+      karena Chrome melompati langkah riwayat yang dibuat tanpa
+      sentuhan pengguna. Untuk layar sentuh, Chrome baru menganggap
+      sentuhan "sah" saat jari diangkat (pointerup/touchend), bukan
+      saat jari menempel — jadi pengisian dilakukan di situ.
+   Tombol kembali tetap berguna: menutup lembar/menu yang terbuka.
+   ============================================================ */
+const APP_VERSION = '1.9';
+
+function isStandalone(){
+  try{
+    return ['standalone','fullscreen','minimal-ui','window-controls-overlay']
+      .some(m=>matchMedia('(display-mode: '+m+')').matches) || navigator.standalone===true;
+  }catch(e){ return false; }
+}
+
+const BackGuard = (()=>{
+  const DEPTH = 25;
+  let active = false, pad = 0, watcher = null, lastNotice = 0, armedOnce = false;
+
+  function openLayerCloser(){
+    const shown = id => { const el=document.getElementById(id); return el && el.classList.contains('show'); };
+    if(shown('catOverlay')) return ()=>closeCatManager();
+    if(shown('overlay'))    return ()=>{ closeModal(); if(currentView==='kasir' && typeof focusScan==='function') focusScan(); };
+    if(shown('menuOverlay'))return ()=>closeMenuSheet();
+    return null;
+  }
+
+  function handleBack(){
+    const close = openLayerCloser();
+    if(close){ try{ close(); }catch(e){ console.error(e); } return; }
+    const now = Date.now();
+    if(now - lastNotice > 1800){ lastNotice = now; toast('Tombol kembali dinonaktifkan','info'); }
+  }
+
+  function makeWatcher(){
+    if(!active || watcher || !('CloseWatcher' in window)) return;
+    try{
+      const w = new CloseWatcher();
+      w.onclose = ()=>{ if(watcher===w) watcher=null; handleBack(); makeWatcher(); };
+      watcher = w;
+    }catch(e){ watcher = null; }
+  }
+
+  function fill(){
+    if(!active) return;
+    try{
+      const st = history.state;
+      if(!st || typeof st.mmGuard!=='number'){ history.replaceState({mmGuard:0}, ''); pad = 0; }
+      else pad = st.mmGuard;
+      while(pad < DEPTH){ pad++; history.pushState({mmGuard:pad}, ''); }
+      armedOnce = true;
+    }catch(e){ console.warn('BackGuard', e); }
+  }
+
+  // Dipanggil di dalam sentuhan/penekanan tombol (aktivasi pengguna yang sah).
+  function onActivation(e){
+    if(!active) return;
+    if(e && e.type==='keydown' && e.key==='Escape') return; // Escape bukan aktivasi
+    fill();
+    makeWatcher();
+  }
+
+  function onPop(e){
+    if(!active) return;
+    const n = e.state && typeof e.state.mmGuard==='number' ? e.state.mmGuard : 0;
+    pad = n;
+    handleBack();
+  }
+
+  function start(){
+    active = isStandalone();
+    if(!active) return;
+    addEventListener('popstate', onPop);
+    ['pointerup','touchend','click','keydown'].forEach(t=>
+      addEventListener(t, onActivation, {capture:true, passive:true}));
+    makeWatcher();   // satu CloseWatcher boleh dibuat tanpa sentuhan → tekan pertama sebelum menyentuh pun tertahan
+  }
+
+  return { start, get active(){ return active; }, get depth(){ return pad; }, get armed(){ return armedOnce; },
+           get hasWatcher(){ return !!watcher; }, _handleBack:handleBack };
+})();
+
+/* --- Pasang sebagai aplikasi --- */
+let deferredInstall = null;
+addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); deferredInstall = e;
+  if(currentView==='pengaturan' && document.getElementById('app').style.display!=='none') renderPengaturan();
+});
+addEventListener('appinstalled', ()=>{
+  deferredInstall = null; toast('Aplikasi terpasang di layar utama');
+  if(currentView==='pengaturan') renderPengaturan();
+});
+async function installApp(){
+  if(!deferredInstall){ toast('Buka menu ⋮ Chrome → "Instal aplikasi"','info'); return; }
+  deferredInstall.prompt();
+  try{ await deferredInstall.userChoice; }catch(e){}
+  deferredInstall = null;
+  if(currentView==='pengaturan') renderPengaturan();
+}
+function pwaCard(){
+  const lock = svg('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>');
+  let body;
+  if(isStandalone()){
+    body = `<div class="pwa-row"><span class="pwa-pill">${lock} Berjalan sebagai aplikasi · tombol kembali dikunci</span></div>
+      <div class="field-hint" style="margin-top:10px">Tombol kembali hanya menutup menu/lembar yang terbuka. Untuk benar-benar mengunci santri di aplikasi ini, aktifkan juga <b>Sematkan layar</b> di tablet.</div>`;
+  } else {
+    body = `<div class="pwa-row">
+        <span class="pwa-pill off">Dibuka lewat browser · tombol kembali belum dikunci</span>
+        ${deferredInstall?`<button class="btn btn-primary btn-sm" onclick="installApp()">${svg('<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>')} Pasang Aplikasi</button>`:''}
+      </div>
+      <div class="field-hint" style="margin-top:10px">${deferredInstall
+        ? 'Ketuk <b>Pasang Aplikasi</b>, lalu buka MAQSOF MDIIA dari ikon di layar utama.'
+        : 'Di Chrome: menu <b>⋮</b> → <b>Instal aplikasi</b> / <b>Tambahkan ke layar utama</b>, lalu buka dari ikon tersebut.'}</div>`;
+  }
+  return `<div class="card" style="max-width:560px;margin-top:16px">
+      <div class="card-head"><div class="card-title">Aplikasi di Perangkat</div></div>
+      <div class="card-body">${body}</div>
+    </div>`;
+}
+
+/* --- Service worker (agar bisa dipasang & tetap tampil saat sinyal putus) --- */
+if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js?v='+APP_VERSION, {scope:'./'}).catch(e=>console.warn('SW', e));
+  });
+}
+
+BackGuard.start();
 
 /* ---------- init ---------- */
 boot();
